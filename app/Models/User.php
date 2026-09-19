@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\Grade;
+use App\Models\Course;
+use App\Models\Order;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -16,8 +18,6 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
-        // السماح فقط للمستخدمين المسجلين واللي عندهم is_admin = true
-        // أي حد تاني (Guest أو User عادي) هيظهر له 404
         return $this->is_admin === true;
     }
 
@@ -27,6 +27,7 @@ class User extends Authenticatable implements FilamentUser
         'phone',
         'grade',
         'password',
+        'is_admin',
     ];
 
     protected $hidden = [
@@ -40,14 +41,30 @@ class User extends Authenticatable implements FilamentUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'grade' => Grade::class,
-            // ملحوظة أمنية: is_admin عمدًا مش موجود في $fillable فوق،
-            // عشان محدش يقدر يبعته جوه فورم عادي (mass assignment) ويرفّع صلاحيته لأدمن.
-            // أي تغيير في is_admin لازم يتم صراحة زي: $user->is_admin = true; $user->save();
             'is_admin' => 'boolean',
         ];
     }
+
+    // الطلبات / عمليات الشراء الخاصة بالطالب
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+
     public function courses()
     {
         return $this->belongsToMany(Course::class, 'course_user');
+    }
+    // الكورسات التي اشتراها الطالب عن طريق الطلبات
+    public function purchasedCourses()
+    {
+        return $this->hasManyThrough(
+            Course::class,
+            Order::class,
+            'user_id',
+            'id',
+            'id',
+            'course_id'
+        );
     }
 }
